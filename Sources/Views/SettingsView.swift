@@ -5,14 +5,14 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(StationSearchViewModel.self) private var searchViewModel
-    @State private var selection: SettingsSection = .fuelPrices
+    @State private var selection: SettingsSection = .about
 
     /// `List(selection:)` erwartet eine optionale Bindung; ein `nil` von der
     /// Liste (Klick ins Leere) fällt auf den ersten Abschnitt zurück.
     private var selectionBinding: Binding<SettingsSection?> {
         Binding(
             get: { selection },
-            set: { selection = $0 ?? .fuelPrices }
+            set: { selection = $0 ?? .about }
         )
     }
 

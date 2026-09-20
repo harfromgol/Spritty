@@ -1,0 +1,51 @@
+name: Spritty
+options:
+  bundleIdPrefix: de.gerdklaus
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+  developmentLanguage: de
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+targets:
+  Spritty:
+    type: application
+    platform: macOS
+    deploymentTarget: "26.0"
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_NAME: Spritty
+        PRODUCT_BUNDLE_IDENTIFIER: de.gerdklaus.Spritty
+        ENABLE_HARDENED_RUNTIME: YES
+        ENABLE_APP_SANDBOX: YES
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: Resources/Info.plist
+      properties:
+        CFBundleDisplayName: Spritty
+        CFBundleName: Spritty
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSPrincipalClass: NSApplication
+        NSMainStoryboardFile: ""
+        LSApplicationCategoryType: public.app-category.utilities
+        # Reine Menüleisten-App: kein Dock-Symbol, keine Menüleiste der App.
+        LSUIElement: true
+        CFBundleDevelopmentRegion: de
+        CFBundleLocalizations:
+          - de
+          - en
+        NSLocationWhenInUseUsageDescription: "Spritty verwendet deinen Standort, um Tankstellen und Spritpreise in deiner Umgebung anzuzeigen."
+    entitlements:
+      path: Resources/Spritty.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.personal-information.location: true

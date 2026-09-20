@@ -178,8 +178,8 @@ private struct AboutSettingsSection: View {
 
 /// Abschnitte im Einstellungsfenster.
 enum SettingsSection: String, CaseIterable, Identifiable {
-    case fuelPrices
     case about
+    case fuelPrices
 
     var id: String { rawValue }
 

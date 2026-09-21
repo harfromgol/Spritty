@@ -9,6 +9,9 @@ import AppKit
 struct SprittyApp: App {
     @State private var pinnedViewModel = PinnedFuelPricesViewModel()
     @State private var searchViewModel = StationSearchViewModel()
+    /// Wendet das gespeicherte Erscheinungsbild an, sobald der Start
+    /// abgeschlossen ist.
+    @State private var appearanceSettings = AppearanceSettings()
 
     var body: some Scene {
         MenuBarExtra {
@@ -34,6 +37,7 @@ struct SprittyApp: App {
         Window("Einstellungen", id: WindowID.settings) {
             SettingsView()
                 .environment(searchViewModel)
+                .environment(appearanceSettings)
         }
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.suppressed)

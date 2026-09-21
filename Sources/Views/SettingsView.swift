@@ -261,7 +261,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .general: return "Allgemein"
-        case .fuelPrices: return "Spritpreise"
+        case .fuelPrices: return "Tankerkönig"
         case .about: return "Info"
         }
     }

@@ -91,56 +91,35 @@ struct StationSelectionWindow: View {
             .padding(.top, 8)
     }
 
-    /// Kopfzeile mit Sortenfilter und „Aktualisieren", darunter die Liste.
+    /// Kopfzeile mit Sortenfilter, darunter die Liste.
     private var stationList: some View {
         @Bindable var vm = vm
-        return TimelineView(.periodic(from: .now, by: 1)) { context in
-            let remaining = vm.secondsRemaining(asOf: context.date)
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    FuelTypeFilterView(enabled: $vm.enabledFuelKinds)
-                    Spacer()
-                    Button("Aktualisieren", systemImage: "arrow.clockwise") {
-                        vm.refresh()
-                    }
-                    .buttonStyle(.glass)
-                    .disabled(remaining != nil)
-                    .pointerStyle(remaining == nil ? .link : nil)
-                }
+        return VStack(alignment: .leading, spacing: 8) {
+            FuelTypeFilterView(enabled: $vm.enabledFuelKinds)
 
-                ScrollView {
-                    GlassEffectContainer {
-                        VStack(alignment: .leading, spacing: 12) {
-                            if vm.visibleStations.isEmpty {
-                                ContentUnavailableView(
-                                    "Keine Tankstellen",
-                                    systemImage: "fuelpump",
-                                    description: Text("Im Umkreis von \(DisplayFormatter.radiusKmString(vm.searchRadiusKm)) wurde keine Tankstelle mit den gewählten Sorten gefunden.")
-                                )
-                                .padding(.top, 60)
-                            } else {
-                                ForEach(vm.visibleStations) { station in
-                                    GasStationPriceRow(station: station, enabled: vm.enabledFuelKinds)
-                                }
+            ScrollView {
+                GlassEffectContainer {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if vm.visibleStations.isEmpty {
+                            ContentUnavailableView(
+                                "Keine Tankstellen",
+                                systemImage: "fuelpump",
+                                description: Text("Im Umkreis von \(DisplayFormatter.radiusKmString(vm.searchRadiusKm)) wurde keine Tankstelle mit den gewählten Sorten gefunden.")
+                            )
+                            .padding(.top, 60)
+                        } else {
+                            ForEach(vm.visibleStations) { station in
+                                GasStationPriceRow(station: station, enabled: vm.enabledFuelKinds)
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                }
-
-                HStack {
-                    TankerkoenigAttributionView()
-                    Spacer()
-                    if let remaining {
-                        Text("Nächste Abfrage in \(DisplayFormatter.countdownString(remaining))")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(20)
+
+            TankerkoenigAttributionView()
         }
+        .padding(20)
     }
 
     private func openLocationSettings() {

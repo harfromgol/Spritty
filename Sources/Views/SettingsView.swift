@@ -1,4 +1,5 @@
 import SwiftUI
+import ServiceManagement
 
 /// Einstellungsfenster: Liste der Abschnitte links, Inhalt rechts – analog zu
 /// den Systemeinstellungen (Aufbau wie in FuhrparkDesktop).
@@ -50,6 +51,8 @@ struct SettingsView: View {
     @ViewBuilder
     private func content(for section: SettingsSection) -> some View {
         switch section {
+        case .general:
+            GeneralSettingsSection()
         case .fuelPrices:
             FuelPricesSettingsSection()
         case .about:
@@ -62,6 +65,77 @@ struct SettingsView: View {
     private func finish() {
         searchViewModel.saveKeyIfValid()
         dismiss()
+    }
+}
+
+/// Sektion „Allgemein": Erscheinungsbild und Start bei der Anmeldung.
+private struct GeneralSettingsSection: View {
+    @Environment(AppearanceSettings.self) private var appearance
+    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var launchError: String?
+
+    var body: some View {
+        @Bindable var appearance = appearance
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Erscheinungsbild")
+                .font(.headline)
+            Text("Legt fest, ob Spritty hell, dunkel oder wie das System erscheint.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Picker("Erscheinungsbild", selection: $appearance.mode) {
+                ForEach(AppearanceMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: 320)
+
+            Divider()
+                .padding(.vertical, 4)
+
+            Text("Anmeldung")
+                .font(.headline)
+            Text("Spritty startet automatisch, sobald du dich an deinem Mac anmeldest.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Toggle("App bei Anmeldung starten", isOn: launchBinding)
+                .toggleStyle(.switch)
+
+            if let launchError {
+                Text(launchError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onAppear { launchAtLogin = SMAppService.mainApp.status == .enabled }
+    }
+
+    /// Schaltet den Anmeldeobjekt-Eintrag über `SMAppService` – der
+    /// tatsächliche Systemzustand bleibt maßgeblich, bei einem Fehler springt
+    /// der Schalter zurück.
+    private var launchBinding: Binding<Bool> {
+        Binding(
+            get: { launchAtLogin },
+            set: { isOn in
+                do {
+                    if isOn {
+                        try SMAppService.mainApp.register()
+                    } else {
+                        try SMAppService.mainApp.unregister()
+                    }
+                    launchError = nil
+                } catch {
+                    launchError = "Die Einstellung konnte nicht geändert werden: \(error.localizedDescription)"
+                }
+                launchAtLogin = SMAppService.mainApp.status == .enabled
+            }
+        )
     }
 }
 
@@ -179,12 +253,14 @@ private struct AboutSettingsSection: View {
 /// Abschnitte im Einstellungsfenster.
 enum SettingsSection: String, CaseIterable, Identifiable {
     case about
+    case general
     case fuelPrices
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
+        case .general: return "Allgemein"
         case .fuelPrices: return "Spritpreise"
         case .about: return "Info"
         }
@@ -192,6 +268,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
+        case .general: return "gearshape"
         case .fuelPrices: return "fuelpump.circle"
         case .about: return "info.circle"
         }

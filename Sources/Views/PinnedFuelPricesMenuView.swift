@@ -5,6 +5,7 @@ import SwiftUI
 /// Wege zu Tankstellenauswahl, Einstellungen und Beenden.
 struct PinnedFuelPricesMenuView: View {
     @Environment(PinnedFuelPricesViewModel.self) private var vm
+    @Environment(StationSearchViewModel.self) private var searchVM
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -80,11 +81,28 @@ struct PinnedFuelPricesMenuView: View {
             Divider()
 
             HStack(spacing: 8) {
-                Button("Tankstelle wählen", systemImage: "fuelpump") {
-                    openWindow.showWindow(id: WindowID.stationSelection)
+                // Nach einer Umkreissuche ist der Button für die Dauer der
+                // Abfragesperre gesperrt; statt des Textes läuft der Countdown.
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let remaining = searchVM.secondsRemaining(asOf: context.date)
+                    Button {
+                        openWindow.showWindow(id: WindowID.stationSelection)
+                    } label: {
+                        Label {
+                            if let remaining {
+                                Text(DisplayFormatter.countdownString(remaining))
+                                    .monospacedDigit()
+                            } else {
+                                Text("Tankstelle wählen")
+                            }
+                        } icon: {
+                            Image(systemName: "fuelpump")
+                        }
+                    }
+                    .buttonStyle(.glass)
+                    .disabled(remaining != nil)
+                    .pointerStyle(remaining == nil ? .link : nil)
                 }
-                .buttonStyle(.glass)
-                .pointerStyle(.link)
 
                 Spacer()
 

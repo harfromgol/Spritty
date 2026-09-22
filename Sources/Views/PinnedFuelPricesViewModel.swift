@@ -120,6 +120,20 @@ final class PinnedFuelPricesViewModel {
         persistCache()
     }
 
+    /// Verschiebt eine per Drag&Drop gezogene Zeile im Popover an die
+    /// Stelle direkt VOR der Zeile, auf der sie fallengelassen wurde –
+    /// `id` und `targetID` sind `PinnedFuelSelection.id`. Der Ziel-Index
+    /// wird bewusst erst NACH dem Entfernen neu ermittelt: Lag `id` vor
+    /// `targetID`, verschiebt das Entfernen dessen Index um eins nach
+    /// vorn, ein vorher gemerkter Index wäre dann falsch.
+    func moveSelection(id: String, before targetID: String) {
+        guard id != targetID, let fromIndex = pinnedSelections.firstIndex(where: { $0.id == id }) else { return }
+        let item = pinnedSelections.remove(at: fromIndex)
+        let toIndex = pinnedSelections.firstIndex(where: { $0.id == targetID }) ?? pinnedSelections.count
+        pinnedSelections.insert(item, at: toIndex)
+        PinnedFuelSelectionStore.set(pinnedSelections)
+    }
+
     /// Löscht Auswahl und Cache (nicht das Intervall, das ist eine
     /// generelle Präferenz) – aufgerufen von „App zurücksetzen".
     func resetPinnedSelections() {

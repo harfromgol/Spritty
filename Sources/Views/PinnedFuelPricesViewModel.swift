@@ -120,17 +120,20 @@ final class PinnedFuelPricesViewModel {
         persistCache()
     }
 
-    /// Verschiebt eine per Drag&Drop gezogene Zeile im Popover an die
-    /// Stelle direkt VOR der Zeile, auf der sie fallengelassen wurde –
-    /// `id` und `targetID` sind `PinnedFuelSelection.id`. Der Ziel-Index
-    /// wird bewusst erst NACH dem Entfernen neu ermittelt: Lag `id` vor
-    /// `targetID`, verschiebt das Entfernen dessen Index um eins nach
-    /// vorn, ein vorher gemerkter Index wäre dann falsch.
-    func moveSelection(id: String, before targetID: String) {
-        guard id != targetID, let fromIndex = pinnedSelections.firstIndex(where: { $0.id == id }) else { return }
-        let item = pinnedSelections.remove(at: fromIndex)
-        let toIndex = pinnedSelections.firstIndex(where: { $0.id == targetID }) ?? pinnedSelections.count
-        pinnedSelections.insert(item, at: toIndex)
+    /// Vertauscht eine angepinnte Zeile im Popover mit ihrer Vorgängerin.
+    /// Drag&Drop scheiterte im `MenuBarExtra`-Popover (kein Fenster mit
+    /// echtem Key-Status, daher keine funktionierende `NSDraggingSession`)
+    /// – Auf/Ab-Buttons sind der zuverlässige Ersatz dafür.
+    func moveSelectionUp(_ selectionId: String) {
+        guard let index = pinnedSelections.firstIndex(where: { $0.id == selectionId }), index > 0 else { return }
+        pinnedSelections.swapAt(index, index - 1)
+        PinnedFuelSelectionStore.set(pinnedSelections)
+    }
+
+    /// Vertauscht eine angepinnte Zeile im Popover mit ihrer Nachfolgerin.
+    func moveSelectionDown(_ selectionId: String) {
+        guard let index = pinnedSelections.firstIndex(where: { $0.id == selectionId }), index < pinnedSelections.count - 1 else { return }
+        pinnedSelections.swapAt(index, index + 1)
         PinnedFuelSelectionStore.set(pinnedSelections)
     }
 

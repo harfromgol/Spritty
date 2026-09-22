@@ -1,17 +1,22 @@
 import SwiftUI
 
 /// Eine Zeile im Menüleisten-Popover: angepinnte Tankstelle/Sorte mit
-/// letztem bekannten Preis, einem Griff zum Umsortieren per Drag&Drop und
-/// einem „×" zum direkten Entfernen (zusätzlich zur Checkbox im
-/// Listen-Fenster).
+/// letztem bekannten Preis, Auf/Ab-Buttons zum Umsortieren und einem „×"
+/// zum direkten Entfernen (zusätzlich zur Checkbox im Listen-Fenster).
+/// Kein Drag&Drop: Im `MenuBarExtra`-Popover (`.window`-Stil, kein
+/// aktivierendes Fenster) kommt dabei keine echte `NSDraggingSession`
+/// zustande – mit der Maus bewegen sich die Zeilen einfach nicht.
 struct PinnedFuelPriceRow: View {
     @Environment(PinnedFuelPricesViewModel.self) private var vm
 
     let selection: PinnedFuelSelection
 
-    /// Ob gerade eine andere Zeile über dieser hier schwebt – hebt die
-    /// Zielposition beim Ziehen farblich hervor.
-    @State private var isDropTarget = false
+    private var index: Int? {
+        vm.pinnedSelections.firstIndex { $0.id == selection.id }
+    }
+
+    private var isFirst: Bool { index == 0 }
+    private var isLast: Bool { index == vm.pinnedSelections.count - 1 }
 
     private var snapshot: FuelPriceSnapshot? {
         vm.snapshots[selection.id]
@@ -24,10 +29,25 @@ struct PinnedFuelPriceRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "line.3.horizontal")
-                .foregroundStyle(.tertiary)
-                .imageScale(.small)
-                .accessibilityHidden(true)
+            VStack(spacing: 2) {
+                Button {
+                    vm.moveSelectionUp(selection.id)
+                } label: {
+                    Image(systemName: "chevron.up")
+                }
+                .disabled(isFirst)
+
+                Button {
+                    vm.moveSelectionDown(selection.id)
+                } label: {
+                    Image(systemName: "chevron.down")
+                }
+                .disabled(isLast)
+            }
+            .buttonStyle(.plain)
+            .font(.caption2.bold())
+            .foregroundStyle(.secondary)
+            .pointerStyle(.link)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(selection.brand.isEmpty ? selection.name : selection.brand)
@@ -50,20 +70,5 @@ struct PinnedFuelPriceRow: View {
             .pointerStyle(.link)
             .help("Entfernen")
         }
-        .padding(.vertical, 2)
-        .padding(.horizontal, 4)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isDropTarget ? Color.accentColor.opacity(0.15) : .clear)
-        )
-        // Zieht die ganze Zeile per `selection.id` (reiner String, dadurch
-        // ohne eigenes `Transferable`-Modell übertragbar); jede andere Zeile
-        // nimmt sie als Drop-Ziel an und rutscht selbst davor.
-        .draggable(selection.id)
-        .dropDestination(for: String.self) { draggedIDs, _ in
-            guard let draggedID = draggedIDs.first else { return false }
-            vm.moveSelection(id: draggedID, before: selection.id)
-            return true
-        } isTargeted: { isDropTarget = $0 }
     }
 }

@@ -78,7 +78,10 @@ final class StationSearchViewModel {
     }
 
     private var running = false
-    private var lastFetchAt: Date?
+    /// Zeitpunkt der letzten erfolgreichen Suche. `private(set)` statt rein
+    /// privat: `StationSelectionWindow` hängt sein `.onChange(of:)` hieran
+    /// auf statt an `stations` selbst (siehe dessen Kommentar).
+    private(set) var lastFetchAt: Date?
 
     /// Feste Sperrzeit nach einer Umkreissuche – dient NICHT mehr dazu, eine
     /// erneute Suche zu verhindern (die führt `search()` jetzt immer sofort

@@ -36,8 +36,17 @@ struct StationSelectionWindow: View {
         // `PinnedFuelPricesMenuView`); dieses Fenster zeigt nur das
         // Ergebnis. Liefert eine Suche frische Preise, werden bereits
         // angepinnte Kombinationen direkt hier übernommen.
-        .onChange(of: vm.stations) { _, newStations in
-            pinnedVM.applySearchResults(newStations)
+        // Auslöser ist `lastFetchAt`, NICHT `vm.stations` selbst: Tankerkönigs
+        // Umkreissuche liefert bei zwei Suchen oft exakt dieselben Treffer
+        // (reale Tankstellen ändern sich selten, der Test-API-Key liefert
+        // sogar IMMER dieselben Werte) – ein `.onChange(of: vm.stations)`
+        // würde dann, weil sich der verglichene Wert nicht ändert, bei der
+        // zweiten Suche einfach nicht mehr feuern und bereits angepinnte
+        // Preise blieben auf dem Stand der ersten Suche stehen. `lastFetchAt`
+        // bekommt dagegen bei JEDER erfolgreichen Suche einen frischen
+        // `Date()`-Wert und unterscheidet sich deshalb garantiert vom vorigen.
+        .onChange(of: vm.lastFetchAt) { _, _ in
+            pinnedVM.applySearchResults(vm.stations)
         }
     }
 

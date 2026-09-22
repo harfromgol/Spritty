@@ -1,7 +1,9 @@
 import CoreLocation
 
-/// Eine Tankstelle aus der Tankerkönig-Umkreissuche.
-struct GasStation: Decodable, Identifiable, Sendable {
+/// Eine Tankstelle aus der Tankerkönig-Umkreissuche. `Equatable`, damit
+/// `StationSelectionWindow` per `.onChange(of: vm.stations)` erkennt, wann
+/// eine neue Umkreissuche frische Preise geliefert hat.
+struct GasStation: Decodable, Identifiable, Equatable, Sendable {
     let id: String
     let name: String
     let brand: String

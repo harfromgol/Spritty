@@ -59,9 +59,10 @@ final class PinnedFuelPricesViewModel {
     /// Pinnt eine Kombination an, falls noch nicht vorhanden. Übernimmt
     /// sofort den aus der Umkreissuche bereits bekannten Preis – die Station
     /// steht ja nur deshalb zur Auswahl, weil die Suche ihn gerade geliefert
-    /// hat, ein Strich bis zur ersten gezielten Abfrage wäre unnötig. Stößt
-    /// zusätzlich bei erlaubtem Cooldown sofort einen echten Refresh an, der
-    /// diesen Anfangswert dann ersetzt.
+    /// hat, ein Strich bis zur ersten gezielten Abfrage wäre unnötig. Löst
+    /// dafür KEINEN eigenen Tankerkönig-Aufruf aus; läuft aber gerade ein
+    /// automatischer Aktualisierungs-Countdown, beginnt der neu (siehe
+    /// `restartCountdownIfActive()`), da die Preise ja bereits frisch sind.
     func pin(_ station: GasStation, fuelKind: FuelKind) {
         let selection = PinnedFuelSelection(station: station, fuelKind: fuelKind)
         guard !isPinned(stationId: station.id, fuelKind: fuelKind) else { return }
@@ -81,9 +82,33 @@ final class PinnedFuelPricesViewModel {
         if wasEmpty {
             restartLoop()
         }
-        if canRefresh() {
-            Task { await refresh() }
+        restartCountdownIfActive()
+    }
+
+    /// Übernimmt Preise aus einer Umkreissuche direkt für bereits angepinnte
+    /// Kombinationen, ohne dafür extra die gezielte Preisabfrage
+    /// (`prices.php`) zu bemühen – `list.php` liefert die Preise ja bereits
+    /// mit. Aufgerufen von `StationSelectionWindow`, sobald eine neue
+    /// Umkreissuche frische `GasStation`-Ergebnisse liefert. Läuft gerade
+    /// ein automatischer Aktualisierungs-Countdown, beginnt der neu.
+    func applySearchResults(_ stations: [GasStation]) {
+        guard !pinnedSelections.isEmpty else { return }
+        let stationsByID = Dictionary(uniqueKeysWithValues: stations.map { ($0.id, $0) })
+
+        var changed = false
+        for selection in pinnedSelections {
+            guard let station = stationsByID[selection.stationId] else { continue }
+            snapshots[selection.id] = FuelPriceSnapshot(
+                stationId: selection.stationId,
+                fuelKind: selection.fuelKind,
+                price: selection.fuelKind.price(for: station),
+                status: station.isOpen ? "open" : "closed"
+            )
+            changed = true
         }
+        guard changed else { return }
+        persistCache()
+        restartCountdownIfActive()
     }
 
     /// Entfernt eine angepinnte Kombination – bedient sowohl das
@@ -120,6 +145,24 @@ final class PinnedFuelPricesViewModel {
         !isRefreshing && secondsRemaining(asOf: now) == nil
     }
 
+    /// Feste 5-Minuten-Sperre nach der letzten Preisabfrage – unabhängig vom
+    /// gewählten Aktualisierungsintervall (das erzwingt über
+    /// `effectiveFloorSeconds` mindestens 30 Minuten, siehe
+    /// `secondsRemaining(asOf:)`). Dient nur der Anzeige-Sperre des Buttons
+    /// „Tankstelle wählen" im Popover (siehe `PinnedFuelPricesMenuView`),
+    /// zusammen mit der entsprechenden Sperre von
+    /// `StationSearchViewModel.secondsRemaining(asOf:)` für die
+    /// Umkreissuche – zusammen decken beide jede Art von Tankerkönig-Aufruf
+    /// ab.
+    private static let stationButtonLockDuration: TimeInterval = 300
+
+    func recentRequestSecondsRemaining(asOf now: Date = Date()) -> Int? {
+        guard let lastQueryAt else { return nil }
+        let remaining = Self.stationButtonLockDuration - now.timeIntervalSince(lastQueryAt)
+        guard remaining > 0 else { return nil }
+        return Int(remaining.rounded(.up))
+    }
+
     /// Manuelle bzw. automatische Aktualisierung – beide laufen hier
     /// zusammen, damit der Cooldown unabhängig vom Auslöser eingehalten
     /// wird (analog zu `FuelPricesViewModel.start()`).
@@ -153,6 +196,20 @@ final class PinnedFuelPricesViewModel {
         } catch {
             lastErrorMessage = "Aktualisierung fehlgeschlagen: \(error.localizedDescription)"
         }
+    }
+
+    /// Setzt den automatischen Aktualisierungs-Countdown auf den vollen
+    /// Wert zurück, aber NUR wenn gerade einer läuft (`secondsRemaining()
+    /// != nil`) – ohne laufenden Countdown wird keiner neu gestartet.
+    /// Aufgerufen, nachdem `pin(_:fuelKind:)` oder `applySearchResults(_:)`
+    /// Preise bereits ohne eigenen Tankerkönig-Aufruf aufgefrischt haben:
+    /// die nächste fällige Abfrage darf sich entsprechend weiter nach
+    /// hinten verschieben.
+    private func restartCountdownIfActive() {
+        guard secondsRemaining() != nil else { return }
+        lastQueryAt = Date()
+        persistCache()
+        restartLoop()
     }
 
     private func persistCache() {

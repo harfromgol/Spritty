@@ -7,6 +7,7 @@ import AppKit
 /// Suchradius werden in den Einstellungen gepflegt.
 struct StationSelectionWindow: View {
     @Environment(StationSearchViewModel.self) private var vm
+    @Environment(PinnedFuelPricesViewModel.self) private var pinnedVM
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -30,8 +31,23 @@ struct StationSelectionWindow: View {
             }
         }
         .frame(minWidth: 420, minHeight: 400)
-        .onAppear { vm.onAppear() }
-        .onChange(of: vm.savedKey) { vm.onAppear() }
+        // Die eigentliche Umkreissuche löst der Button „Tankstelle wählen"
+        // im Popover aus (immer, ohne Abklingzeit – siehe
+        // `PinnedFuelPricesMenuView`); dieses Fenster zeigt nur das
+        // Ergebnis. Liefert eine Suche frische Preise, werden bereits
+        // angepinnte Kombinationen direkt hier übernommen.
+        // Auslöser ist `lastFetchAt`, NICHT `vm.stations` selbst: Tankerkönigs
+        // Umkreissuche liefert bei zwei Suchen oft exakt dieselben Treffer
+        // (reale Tankstellen ändern sich selten, der Test-API-Key liefert
+        // sogar IMMER dieselben Werte) – ein `.onChange(of: vm.stations)`
+        // würde dann, weil sich der verglichene Wert nicht ändert, bei der
+        // zweiten Suche einfach nicht mehr feuern und bereits angepinnte
+        // Preise blieben auf dem Stand der ersten Suche stehen. `lastFetchAt`
+        // bekommt dagegen bei JEDER erfolgreichen Suche einen frischen
+        // `Date()`-Wert und unterscheidet sich deshalb garantiert vom vorigen.
+        .onChange(of: vm.lastFetchAt) { _, _ in
+            pinnedVM.applySearchResults(vm.stations)
+        }
     }
 
     private var needsKeyHint: some View {
@@ -68,7 +84,7 @@ struct StationSelectionWindow: View {
             Text(error.message)
         } actions: {
             HStack {
-                Button("Erneut versuchen") { vm.refresh() }
+                Button("Erneut versuchen") { vm.search() }
                     .buttonStyle(.glass)
                     .pointerStyle(.link)
                 if error.showsSettingsButton {
@@ -91,56 +107,35 @@ struct StationSelectionWindow: View {
             .padding(.top, 8)
     }
 
-    /// Kopfzeile mit Sortenfilter und „Aktualisieren", darunter die Liste.
+    /// Kopfzeile mit Sortenfilter, darunter die Liste.
     private var stationList: some View {
         @Bindable var vm = vm
-        return TimelineView(.periodic(from: .now, by: 1)) { context in
-            let remaining = vm.secondsRemaining(asOf: context.date)
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    FuelTypeFilterView(enabled: $vm.enabledFuelKinds)
-                    Spacer()
-                    Button("Aktualisieren", systemImage: "arrow.clockwise") {
-                        vm.refresh()
-                    }
-                    .buttonStyle(.glass)
-                    .disabled(remaining != nil)
-                    .pointerStyle(remaining == nil ? .link : nil)
-                }
+        return VStack(alignment: .leading, spacing: 8) {
+            FuelTypeFilterView(enabled: $vm.enabledFuelKinds)
 
-                ScrollView {
-                    GlassEffectContainer {
-                        VStack(alignment: .leading, spacing: 12) {
-                            if vm.visibleStations.isEmpty {
-                                ContentUnavailableView(
-                                    "Keine Tankstellen",
-                                    systemImage: "fuelpump",
-                                    description: Text("Im Umkreis von \(DisplayFormatter.radiusKmString(vm.searchRadiusKm)) wurde keine Tankstelle mit den gewählten Sorten gefunden.")
-                                )
-                                .padding(.top, 60)
-                            } else {
-                                ForEach(vm.visibleStations) { station in
-                                    GasStationPriceRow(station: station, enabled: vm.enabledFuelKinds)
-                                }
+            ScrollView {
+                GlassEffectContainer {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if vm.visibleStations.isEmpty {
+                            ContentUnavailableView(
+                                "Keine Tankstellen",
+                                systemImage: "fuelpump",
+                                description: Text("Im Umkreis von \(DisplayFormatter.radiusKmString(vm.searchRadiusKm)) wurde keine Tankstelle mit den gewählten Sorten gefunden.")
+                            )
+                            .padding(.top, 60)
+                        } else {
+                            ForEach(vm.visibleStations) { station in
+                                GasStationPriceRow(station: station, enabled: vm.enabledFuelKinds)
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                }
-
-                HStack {
-                    TankerkoenigAttributionView()
-                    Spacer()
-                    if let remaining {
-                        Text("Nächste Abfrage in \(DisplayFormatter.countdownString(remaining))")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(20)
+
+            TankerkoenigAttributionView()
         }
+        .padding(20)
     }
 
     private func openLocationSettings() {

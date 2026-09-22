@@ -7,6 +7,7 @@ import AppKit
 /// Suchradius werden in den Einstellungen gepflegt.
 struct StationSelectionWindow: View {
     @Environment(StationSearchViewModel.self) private var vm
+    @Environment(PinnedFuelPricesViewModel.self) private var pinnedVM
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
@@ -30,8 +31,14 @@ struct StationSelectionWindow: View {
             }
         }
         .frame(minWidth: 420, minHeight: 400)
-        .onAppear { vm.onAppear() }
-        .onChange(of: vm.savedKey) { vm.onAppear() }
+        // Die eigentliche Umkreissuche löst der Button „Tankstelle wählen"
+        // im Popover aus (immer, ohne Abklingzeit – siehe
+        // `PinnedFuelPricesMenuView`); dieses Fenster zeigt nur das
+        // Ergebnis. Liefert eine Suche frische Preise, werden bereits
+        // angepinnte Kombinationen direkt hier übernommen.
+        .onChange(of: vm.stations) { _, newStations in
+            pinnedVM.applySearchResults(newStations)
+        }
     }
 
     private var needsKeyHint: some View {
@@ -68,7 +75,7 @@ struct StationSelectionWindow: View {
             Text(error.message)
         } actions: {
             HStack {
-                Button("Erneut versuchen") { vm.refresh() }
+                Button("Erneut versuchen") { vm.search() }
                     .buttonStyle(.glass)
                     .pointerStyle(.link)
                 if error.showsSettingsButton {

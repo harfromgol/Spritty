@@ -44,6 +44,15 @@ struct PinnedFuelPricesMenuView: View {
 
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let remaining = vm.secondsRemaining(asOf: context.date)
+                    // Lief gerade KEIN eigener Preisabfrage-Countdown, aber
+                    // eine Umkreissuche über „Tankstelle wählen" hat
+                    // stattgefunden, sperrt deren 5-Minuten-Anzeige-Sperre
+                    // (`searchVM.secondsRemaining`) zusätzlich Dropdown und
+                    // Button – ohne eigene Countdown-Anzeige. Läuft bereits
+                    // ein Preisabfrage-Countdown, bleibt es bei dessen
+                    // gewohntem Verhalten.
+                    let searchLock = remaining == nil ? searchVM.secondsRemaining(asOf: context.date) : nil
+                    let disabled = remaining != nil || searchLock != nil
                     VStack(spacing: 4) {
                         HStack {
                             Picker("Aktualisierung", selection: $vm.refreshInterval) {
@@ -53,6 +62,7 @@ struct PinnedFuelPricesMenuView: View {
                             }
                             .labelsHidden()
                             .fixedSize()
+                            .disabled(disabled)
 
                             Spacer()
 
@@ -60,8 +70,8 @@ struct PinnedFuelPricesMenuView: View {
                                 Task { await vm.refresh() }
                             }
                             .buttonStyle(.glass)
-                            .disabled(remaining != nil || vm.isRefreshing)
-                            .pointerStyle(remaining == nil && !vm.isRefreshing ? .link : nil)
+                            .disabled(disabled || vm.isRefreshing)
+                            .pointerStyle(!disabled && !vm.isRefreshing ? .link : nil)
                         }
                         if let remaining {
                             Text("Nächste Abfrage in \(DisplayFormatter.countdownString(remaining))")
@@ -81,12 +91,17 @@ struct PinnedFuelPricesMenuView: View {
             Divider()
 
             HStack(spacing: 8) {
-                // Nach einer Umkreissuche ist der Button für die Dauer der
-                // Abfragesperre gesperrt; statt des Textes läuft der Countdown.
+                // Nach JEDER Abfrage an Tankerkönig – Umkreissuche hier wie
+                // Preisabfrage im Aktualisieren-Button oben – ist der Button
+                // für 5 Minuten gesperrt; statt des Textes läuft der
+                // Countdown der jeweils später abgelaufenen Sperre.
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    let remaining = searchVM.secondsRemaining(asOf: context.date)
+                    let searchRemaining = searchVM.secondsRemaining(asOf: context.date)
+                    let queryRemaining = vm.recentRequestSecondsRemaining(asOf: context.date)
+                    let remaining = [searchRemaining, queryRemaining].compactMap { $0 }.max()
                     Button {
                         openWindow.showWindow(id: WindowID.stationSelection)
+                        searchVM.search()
                     } label: {
                         Label {
                             if let remaining {

@@ -120,6 +120,23 @@ final class PinnedFuelPricesViewModel {
         persistCache()
     }
 
+    /// Vertauscht eine angepinnte Zeile im Popover mit ihrer Vorgängerin.
+    /// Drag&Drop scheiterte im `MenuBarExtra`-Popover (kein Fenster mit
+    /// echtem Key-Status, daher keine funktionierende `NSDraggingSession`)
+    /// – Auf/Ab-Buttons sind der zuverlässige Ersatz dafür.
+    func moveSelectionUp(_ selectionId: String) {
+        guard let index = pinnedSelections.firstIndex(where: { $0.id == selectionId }), index > 0 else { return }
+        pinnedSelections.swapAt(index, index - 1)
+        PinnedFuelSelectionStore.set(pinnedSelections)
+    }
+
+    /// Vertauscht eine angepinnte Zeile im Popover mit ihrer Nachfolgerin.
+    func moveSelectionDown(_ selectionId: String) {
+        guard let index = pinnedSelections.firstIndex(where: { $0.id == selectionId }), index < pinnedSelections.count - 1 else { return }
+        pinnedSelections.swapAt(index, index + 1)
+        PinnedFuelSelectionStore.set(pinnedSelections)
+    }
+
     /// Löscht Auswahl und Cache (nicht das Intervall, das ist eine
     /// generelle Präferenz) – aufgerufen von „App zurücksetzen".
     func resetPinnedSelections() {

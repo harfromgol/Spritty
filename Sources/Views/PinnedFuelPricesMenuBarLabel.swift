@@ -1,25 +1,25 @@
 import SwiftUI
 import AppKit
 
-/// Inhalt des Menüleisten-Icons selbst (nicht das Popover dahinter). Bei
-/// genau einer angepinnten Kombination steht der Preis direkt neben dem
-/// Icon in der Menüleiste – bei mehreren wäre nicht erkennbar, welcher
-/// Preis gemeint ist, dort bleibt es beim reinen Icon.
+/// Inhalt des Menüleisten-Icons selbst (nicht das Popover dahinter). Ist
+/// mindestens eine Kombination angepinnt, steht der Preis der OBERSTEN
+/// Zeile im Popover direkt neben dem Icon – wer eine andere Tankstelle dort
+/// sehen will, schiebt sie im Popover per Auf/Ab-Buttons nach oben.
 struct PinnedFuelPricesMenuBarLabel: View {
     @Environment(PinnedFuelPricesViewModel.self) private var vm
 
-    /// `nil` bei keiner oder mehreren Anpinnungen. Bei genau einer immer ein
-    /// Text (notfalls „–"), damit das Icon nicht flackernd zwischen Icon-only
-    /// und Icon+Preis wechselt, während der erste Preis noch lädt.
-    private var singleSelectionPriceText: String? {
-        guard vm.pinnedSelections.count == 1, let selection = vm.pinnedSelections.first else { return nil }
+    /// `nil` ohne Anpinnung. Sonst immer ein Text (notfalls „–"), damit das
+    /// Icon nicht flackernd zwischen Icon-only und Icon+Preis wechselt,
+    /// während der erste Preis noch lädt.
+    private var topPriceText: String? {
+        guard let selection = vm.pinnedSelections.first else { return nil }
         guard let price = vm.snapshots[selection.id]?.price else { return "–" }
         return DisplayFormatter.pricePerLiterString(Decimal(price))
     }
 
     var body: some View {
         Group {
-            if let singleSelectionPriceText, let combined = Self.combinedImage(price: singleSelectionPriceText) {
+            if let topPriceText, let combined = Self.combinedImage(price: topPriceText) {
                 Image(nsImage: combined)
             } else {
                 Image(systemName: "fuelpump.fill")

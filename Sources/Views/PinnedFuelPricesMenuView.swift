@@ -62,7 +62,10 @@ struct PinnedFuelPricesMenuView: View {
                             }
                             .labelsHidden()
                             .fixedSize()
-                            .disabled(disabled)
+                            // Nur die kurze Sperre nach der Umkreissuche sperrt das
+                            // Dropdown – der lange Preisabfrage-Countdown betrifft nur
+                            // den Button, das Intervall soll jederzeit umschaltbar sein.
+                            .disabled(searchLock != nil)
 
                             Spacer()
 
